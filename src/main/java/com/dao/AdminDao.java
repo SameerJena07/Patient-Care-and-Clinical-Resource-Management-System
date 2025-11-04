@@ -24,20 +24,22 @@ public class AdminDao {
 
     /**
      * Attempts to log in an Admin using email and password.
-     * @param email The admin's email.
+     * 
+     * @param email    The admin's email.
      * @param password The admin's password.
      * @return The Admin object if credentials are valid, otherwise null.
      */
     public Admin login(String email, String password) {
         Admin admin = null;
-        // Using try-with-resources for automatic closing of Connection, PreparedStatement, and ResultSet
+        // Using try-with-resources for automatic closing of Connection,
+        // PreparedStatement, and ResultSet
         try (Connection conn = DBConnect.getConn();
-             PreparedStatement ps = conn.prepareStatement(
-                 "SELECT id, full_name, email, password, created_at FROM admins WHERE email = ? AND password = ?")) {
-            
+                PreparedStatement ps = conn.prepareStatement(
+                        "SELECT id, full_name, email, password, created_at FROM admins WHERE email = ? AND password = ?")) {
+
             ps.setString(1, email);
             ps.setString(2, password);
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     admin = mapAdminFromResultSet(rs);
@@ -57,13 +59,13 @@ public class AdminDao {
     public boolean changePassword(int adminId, String newPassword) {
         boolean success = false;
         try (Connection conn = DBConnect.getConn();
-             PreparedStatement ps = conn.prepareStatement(
-                 "UPDATE admins SET password=? WHERE id=?")) {
-            
+                PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE admins SET password=? WHERE id=?")) {
+
             ps.setString(1, newPassword);
             ps.setInt(2, adminId);
             success = ps.executeUpdate() > 0;
-            
+
         } catch (Exception e) {
             System.err.println("Error changing Admin password:");
             e.printStackTrace();
@@ -77,10 +79,11 @@ public class AdminDao {
     public Admin getAdminById(int id) {
         Admin admin = null;
         try (Connection conn = DBConnect.getConn();
-             PreparedStatement ps = conn.prepareStatement("SELECT id, full_name, email, password, created_at FROM admins WHERE id = ?")) {
-            
+                PreparedStatement ps = conn.prepareStatement(
+                        "SELECT id, full_name, email, password, created_at FROM admins WHERE id = ?")) {
+
             ps.setInt(1, id);
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     admin = mapAdminFromResultSet(rs);
@@ -99,9 +102,9 @@ public class AdminDao {
     public boolean isEmailExists(String email) {
         boolean exists = false;
         try (Connection conn = DBConnect.getConn();
-             PreparedStatement ps = conn.prepareStatement(
-                 "SELECT id FROM admins WHERE email = ?")) {
-            
+                PreparedStatement ps = conn.prepareStatement(
+                        "SELECT id FROM admins WHERE email = ?")) {
+
             ps.setString(1, email);
             try (ResultSet rs = ps.executeQuery()) {
                 exists = rs.next();
