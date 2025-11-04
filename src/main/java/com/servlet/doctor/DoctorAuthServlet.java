@@ -42,3 +42,45 @@ public class DoctorAuthServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/doctor/login.jsp");
         }
     }
+    // Doctor registration
+    private void registerDoctor(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        try {
+            String fullName = request.getParameter("fullName");
+            String email = request.getParameter("email");
+            String password = request.getParameter("password");
+            String phone = request.getParameter("phone");
+            String specialization = request.getParameter("specialization");
+            String department = request.getParameter("department");
+            String qualification = request.getParameter("qualification");
+            int experience = Integer.parseInt(request.getParameter("experience"));
+            double visitingCharge = Double.parseDouble(request.getParameter("visitingCharge"));
+
+            // Check if email already exists
+            if (doctorDao.isEmailExists(email)) {
+                request.setAttribute("errorMsg", "Email already exists. Please use a different email.");
+                request.getRequestDispatcher("register.jsp").forward(request, response);
+                return;
+            }
+
+            // Note: Doctor object constructor automatically sets isApproved=false (from Doctor.java)
+            Doctor doctor = new Doctor(fullName, email, password, phone, specialization,
+                    department, qualification, experience, visitingCharge);
+
+            boolean success = doctorDao.registerDoctor(doctor);
+
+            if (success) {
+                // Set a message for the user after successful registration
+                request.getSession().setAttribute("successMsg", "Registration successful. Your account is pending admin approval to Login");
+                response.sendRedirect("login.jsp");
+            } else {
+                request.setAttribute("errorMsg", "Registration failed. Please try again.");
+                request.getRequestDispatcher("register.jsp").forward(request, response);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            request.setAttribute("errorMsg", "An error occurred during registration.");
+            request.getRequestDispatcher("register.jsp").forward(request, response);
+        }
+    }
