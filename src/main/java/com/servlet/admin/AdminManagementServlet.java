@@ -1,22 +1,18 @@
 package com.servlet.admin;
 
-import java.io.IOException;
-import java.sql.Date;
-import java.sql.Time;
-
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import com.dao.AppointmentDao;
 import com.dao.DoctorDao;
 import com.dao.PatientDao;
 import com.entity.Appointment;
 import com.entity.Doctor;
 import com.entity.Patient;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.sql.Date;
+import java.sql.Time;
 
 @WebServlet("/admin/management")
 public class AdminManagementServlet extends HttpServlet {
