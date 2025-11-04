@@ -96,3 +96,42 @@ public class DoctorProfileServlet extends HttpServlet {
             request.getRequestDispatcher("profile.jsp").forward(request, response);
         }
     }
+
+    private void changePassword(HttpServletRequest request, HttpServletResponse response) 
+            throws ServletException, IOException {
+        
+        try {
+            HttpSession session = request.getSession();
+            Doctor doctor = (Doctor) session.getAttribute("doctorObj");
+            
+            String currentPassword = request.getParameter("currentPassword");
+            String newPassword = request.getParameter("newPassword");
+            String confirmPassword = request.getParameter("confirmPassword");
+            
+            // Check if new password matches confirmation
+            if (!newPassword.equals(confirmPassword)) {
+                request.setAttribute("errorMsg", "New password and confirm password do not match.");
+                request.getRequestDispatcher("change_password.jsp").forward(request, response);
+                return;
+            }
+            
+            // Use the DAO initialized in init()
+            boolean success = doctorDao.changePassword(doctor.getId(), newPassword);
+            
+            if (success) {
+                doctor.setPassword(newPassword);
+                session.setAttribute("doctorObj", doctor);
+                request.setAttribute("successMsg", "Password changed successfully!");
+            } else {
+                request.setAttribute("errorMsg", "Failed to change password. Please try again.");
+            }
+            
+            request.getRequestDispatcher("change_password.jsp").forward(request, response);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            request.setAttribute("errorMsg", "An error occurred while changing password.");
+            request.getRequestDispatcher("change_password.jsp").forward(request, response);
+        }
+    }
+}
