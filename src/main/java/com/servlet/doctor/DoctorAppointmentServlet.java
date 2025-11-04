@@ -80,3 +80,54 @@ public class DoctorAppointmentServlet extends HttpServlet {
             viewAppointments(request, response);
         }
     }
+
+    // Update appointment status
+    private void updateAppointmentStatus(HttpServletRequest request, HttpServletResponse response) 
+            throws ServletException, IOException {
+        
+        try {
+            int appointmentId = Integer.parseInt(request.getParameter("appointmentId"));
+            String status = request.getParameter("status");
+            
+            boolean success = appointmentDao.updateAppointmentStatus(appointmentId, status);
+            
+            if (success) {
+                request.setAttribute("successMsg", "Appointment status updated successfully!");
+            } else {
+                request.setAttribute("errorMsg", "Failed to update appointment status.");
+            }
+            
+            viewAppointments(request, response);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            request.setAttribute("errorMsg", "An error occurred while updating appointment status.");
+            viewAppointments(request, response);
+        }
+    }
+
+    // Update follow-up status
+    private void updateFollowUpStatus(HttpServletRequest request, HttpServletResponse response) 
+            throws ServletException, IOException {
+        
+        try {
+            int appointmentId = Integer.parseInt(request.getParameter("appointmentId"));
+            boolean followUpRequired = "on".equals(request.getParameter("followUpRequired"));
+            
+            boolean success = appointmentDao.markFollowUpRequired(appointmentId, followUpRequired);
+            
+            if (success) {
+                request.setAttribute("successMsg", "Follow-up status updated successfully!");
+            } else {
+                request.setAttribute("errorMsg", "Failed to update follow-up status.");
+            }
+            
+            viewAppointments(request, response);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            request.setAttribute("errorMsg", "An error occurred while updating follow-up status.");
+            viewAppointments(request, response);
+        }
+    }
+}
