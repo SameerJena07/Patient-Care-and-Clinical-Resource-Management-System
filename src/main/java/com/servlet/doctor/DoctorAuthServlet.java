@@ -84,3 +84,86 @@ public class DoctorAuthServlet extends HttpServlet {
             request.getRequestDispatcher("register.jsp").forward(request, response);
         }
     }
+    
+
+
+    // Doctor login
+    private void loginDoctor(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        try {
+            String email = request.getParameter("email");
+            String password = request.getParameter("password");
+            String rememberMe = request.getParameter("rememberMe");
+
+            Doctor doctor = doctorDao.login(email, password);
+            HttpSession session = request.getSession();
+
+            if (doctor != null) {
+                
+                // ▼▼▼ CORE APPROVAL CHECK LOGIC ▼▼▼
+                if (doctor.isApproved()) {
+                    
+                    // 1. Success: Doctor is approved and can log in.
+                    session.setAttribute("doctorObj", doctor);
+
+                    // Remember Me cookies
+                    if ("on".equals(rememberMe)) {
+                        Cookie emailCookie = new Cookie("doctorEmail", email);
+                        Cookie passwordCookie = new Cookie("doctorPassword", password);
+                        emailCookie.setMaxAge(7 * 24 * 60 * 60);
+                        passwordCookie.setMaxAge(7 * 24 * 60 * 60);
+                        response.addCookie(emailCookie);
+                        response.addCookie(passwordCookie);
+                    } else {
+                        // Clear cookies if 'Remember Me' is unchecked or login successful without it
+                        Cookie emailCookie = new Cookie("doctorEmail", "");
+                        Cookie passwordCookie = new Cookie("doctorPassword", "");
+                        emailCookie.setMaxAge(0);
+                        passwordCookie.setMaxAge(0);
+                        response.addCookie(emailCookie);
+                        response.addCookie(passwordCookie);
+                    }
+
+                    response.sendRedirect("dashboard.jsp");
+                    
+                } else {
+                    // 2. Failure: Doctor is registered but NOT approved.
+                    session.setAttribute("errorMsg", "Login Denied! Your account is pending administrator approval.");
+                    response.sendRedirect("login.jsp");
+                }
+                // ▲▲▲ END OF APPROVAL CHECK ▲▲▲
+                
+            } else {
+                // 3. Failure: Invalid credentials (email/password mismatch).
+                request.setAttribute("errorMsg", "Invalid email or password");
+                request.getRequestDispatcher("login.jsp").forward(request, response);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            request.setAttribute("errorMsg", "An error occurred during login.");
+            request.getRequestDispatcher("login.jsp").forward(request, response);
+        }
+    }
+
+    // Doctor logout 
+    private void logoutDoctor(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.removeAttribute("doctorObj");
+            session.invalidate();
+        }
+
+        // Clear cookies
+        Cookie emailCookie = new Cookie("doctorEmail", "");
+        Cookie passwordCookie = new Cookie("doctorPassword", "");
+        emailCookie.setMaxAge(0);
+        passwordCookie.setMaxAge(0);
+        response.addCookie(emailCookie);
+        response.addCookie(passwordCookie);
+        response.sendRedirect(request.getContextPath() + "/index.jsp");
+    }
+}
