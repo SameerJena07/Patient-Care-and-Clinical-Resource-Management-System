@@ -2,25 +2,36 @@ package com.servlet.patient;
 
 import com.dao.AppointmentDao;
 import com.dao.DoctorDao;
+import com.dao.PrescriptionDao; 
+import com.dao.ReviewDao; // --- NEW IMPORT ---
 import com.entity.Appointment;
 import com.entity.Patient;
+import com.entity.Prescription; 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import java.io.IOException;
 import java.sql.Date;
 import java.sql.Time;
+import java.util.HashMap; 
+import java.util.HashSet; // --- NEW IMPORT ---
 import java.util.List;
+import java.util.Map; 
+import java.util.Set; // --- NEW IMPORT ---
 
 @WebServlet("/patient/appointment")
 public class PatientAppointmentServlet extends HttpServlet {
     private AppointmentDao appointmentDao;
     private DoctorDao doctorDao;
+    private PrescriptionDao prescriptionDao; 
+    private ReviewDao reviewDao; // --- NEW DAO ---
 
     @Override
     public void init() throws ServletException {
         appointmentDao = new AppointmentDao();
         doctorDao = new DoctorDao();
+        prescriptionDao = new PrescriptionDao(); 
+        reviewDao = new ReviewDao(); // --- NEW DAO ---
     }
 
     private Patient checkPatientSession(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -61,7 +72,10 @@ public class PatientAppointmentServlet extends HttpServlet {
                 showEditAppointmentForm(request, response, patient);
                 break;
             case "details":
-                showAppointmentDetails(request, response, patient);
+                showAppointmentDetails(request, response, patient); // This is for your existing page
+                break;
+            case "prescription": 
+                showPrescriptionDetails(request, response, patient);
                 break;
             default:
                 viewAppointments(request, response, patient);
@@ -91,17 +105,44 @@ public class PatientAppointmentServlet extends HttpServlet {
                 cancelAppointment(request, response, patient);
                 break;
             default:
-
                 response.sendRedirect(request.getContextPath() + "/patient/appointment?action=view");
                 break;
         }
     }
 
+    // --- THIS METHOD IS UPDATED ---
     private void viewAppointments(HttpServletRequest request, HttpServletResponse response, Patient patient)
             throws ServletException, IOException {
 
+        // 1. Get appointments
         List<Appointment> appointments = appointmentDao.getAppointmentsByPatientId(patient.getId());
+        
+        // 2. Get prescriptions for completed appointments
+        Map<Integer, Prescription> prescriptionMap = new HashMap<>();
+        
+        // 3. --- NEW: Get set of reviewed appointment IDs ---
+        Set<Integer> reviewedAppointmentIds = new HashSet<>();
+        
+        for (Appointment appt : appointments) {
+            if ("Completed".equals(appt.getStatus())) {
+                // Check for prescription
+                Prescription p = prescriptionDao.getPrescriptionByAppointmentId(appt.getId());
+                if (p != null) {
+                    prescriptionMap.put(appt.getId(), p);
+                }
+                
+                // --- NEW: Check if reviewed ---
+                if (reviewDao.hasPatientReviewed(appt.getId())) {
+                    reviewedAppointmentIds.add(appt.getId());
+                }
+            }
+        }
+        
+        // 4. Pass all data to the JSP
         request.setAttribute("appointments", appointments);
+        request.setAttribute("prescriptionMap", prescriptionMap); 
+        request.setAttribute("reviewedIds", reviewedAppointmentIds); // --- NEW ATTRIBUTE ---
+        
         request.getRequestDispatcher("view_appointments.jsp").forward(request, response);
     }
 
@@ -137,7 +178,7 @@ public class PatientAppointmentServlet extends HttpServlet {
             
             if (!status.equalsIgnoreCase("Pending")) {
                 session.setAttribute("errorMsg", "This appointment is already " + status + " and cannot be edited.");
-                response.sendRedirect(request.getContextPath() + "/patient/appointment?action=details&id=" + appointmentId);
+                response.sendRedirect(request.getContextPath() + "/patient/appointment?action=view");
                 return;
             }
 
@@ -181,6 +222,38 @@ public class PatientAppointmentServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath() + "/patient/appointment?action=view");
         }
     }
+
+    private void showPrescriptionDetails(HttpServletRequest request, HttpServletResponse response, Patient patient)
+            throws ServletException, IOException {
+        
+        HttpSession session = request.getSession();
+        try {
+            int appointmentId = Integer.parseInt(request.getParameter("id"));
+            Appointment appointment = appointmentDao.getAppointmentById(appointmentId);
+            Prescription prescription = prescriptionDao.getPrescriptionByAppointmentId(appointmentId);
+
+            if (appointment == null || prescription == null || appointment.getPatientId() != patient.getId()) {
+                session.setAttribute("errorMsg", "Prescription not found or access denied.");
+                response.sendRedirect(request.getContextPath() + "/patient/appointment?action=view");
+                return;
+            }
+            
+            // Also get the list of medicines
+            prescription.setMedications(prescriptionDao.getMedicationsByPrescriptionId(prescription.getPrescriptionId()));
+            
+            request.setAttribute("appointment", appointment);
+            request.setAttribute("prescription", prescription);
+            
+            // This points to the new prescription details page
+            request.getRequestDispatcher("prescription_details.jsp").forward(request, response);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            session.setAttribute("errorMsg", "Invalid ID.");
+            response.sendRedirect(request.getContextPath() + "/patient/appointment?action=view");
+        }
+    }
+
 
     private void bookAppointment(HttpServletRequest request, HttpServletResponse response, Patient patient)
             throws ServletException, IOException {
@@ -233,9 +306,11 @@ public class PatientAppointmentServlet extends HttpServlet {
             String appointmentType = request.getParameter("appointmentType");
             String reason = request.getParameter("reason");
             String notes = request.getParameter("notes");
-
-            Appointment appointmentToUpdate = new Appointment();
-            appointmentToUpdate.setId(appointmentId);
+            
+            // Re-fetch the existing appointment to ensure we don't overwrite status
+            Appointment appointmentToUpdate = appointmentDao.getAppointmentById(appointmentId);
+            
+            // Only update fields the patient is allowed to change
             appointmentToUpdate.setAppointmentDate(appointmentDate);
             appointmentToUpdate.setAppointmentTime(appointmentTime);
             appointmentToUpdate.setAppointmentType(appointmentType);

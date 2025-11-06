@@ -103,7 +103,7 @@
         </div>
     </div>
     
-    <main class="main-content">
+    <main class="main-content main-content-flush">
         <div class="profile-header">
             <div class="d-flex justify-content-between align-items-center">
                 <div>

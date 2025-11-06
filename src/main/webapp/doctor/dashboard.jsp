@@ -2,7 +2,11 @@
 <%@ page import="com.dao.AppointmentDao" %>
 <%@ page import="java.util.List" %>
 <%@ page import="com.entity.Appointment" %>
-<%@ page import="java.util.stream.Collectors" %> <%-- For Stream API --%>
+<%@ page import="java.util.stream.Collectors" %>
+<%@ page import="com.dao.PatientDao" %>
+<%@ page import="com.entity.Patient" %>
+<%@ page import="com.dao.ReviewDao" %> <%-- --- NEW IMPORT --- --%>
+<%@ page import="com.entity.DoctorReview" %> <%-- --- NEW IMPORT --- --%>
 <%
     // Renamed 'doctor' to 'currentDoctor' for clarity
     Doctor currentDoctor = (Doctor) session.getAttribute("doctorObj");
@@ -22,6 +26,16 @@
 
     // Variable needed for the sidebar's logout button
     String currentUserRole = "doctor";
+    
+    // --- NEW: Get Feedback & Rating Data ---
+    ReviewDao reviewDao = new ReviewDao();
+    List<DoctorReview> reviewList = reviewDao.getReviewsByDoctorId(currentDoctor.getId());
+    double averageRating = reviewDao.getAverageRatingByDoctorId(currentDoctor.getId());
+    String formattedRating = String.format("%.1f", averageRating); // Format to one decimal place
+    int totalReviews = reviewList.size();
+    
+    PatientDao patientDao = new PatientDao(); // To get patient names for reviews
+    // --- END NEW DATA ---
 %>
 <!DOCTYPE html>
 <html lang="en">
@@ -44,6 +58,7 @@
     </button>
     
     <div class="sidebar" id="sidebar">
+        <!-- ... (Sidebar HTML remains unchanged) ... -->
         <div class="sidebar-sticky">
             <div class="user-section">
                 <div class="user-avatar">
@@ -129,6 +144,7 @@
 
         <div class="dashboard-body">
             <div class="row mb-4">
+                <!-- ... (Stats Cards remain unchanged) ... -->
                 <div class="col-xl-3 col-md-6 mb-4">
                     <div class="stats-card stats-total">
                         <i class="fas fa-calendar-check"></i>
@@ -169,7 +185,9 @@
 
             <div class="row">
                 <div class="col-lg-8 mb-4">
-                    <div class="card card-modern recent-appointments-section"> <div class="card-header-modern d-flex justify-content-between align-items-center">
+                    <div class="card card-modern recent-appointments-section"> 
+                        <!-- ... (Recent Appointments Card content remains unchanged) ... -->
+                        <div class="card-header-modern d-flex justify-content-between align-items-center">
                             <div>
                                 <i class="fas fa-list-alt"></i>
                                 <span>Recent Appointments</span>
@@ -201,35 +219,19 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            
-                                            <%-- ▼▼▼ THIS IS THE CORRECTED CODE BLOCK ▼▼▼ --%>
                                             <%
                                                 for (Appointment app : recentAppointments) {
-                                                    
                                                     String status = app.getStatus();
-
-                                                    // If status is null, default it to "Pending"
                                                     if (status == null) {
                                                         status = "Pending";
                                                     }
-                                                    
                                                     String statusBadgeClass;
                                                     switch (status) {
-                                                        case "Pending": 
-                                                            statusBadgeClass = "badge-pending"; 
-                                                            break;
-                                                        case "Confirmed": 
-                                                            statusBadgeClass = "badge-confirmed"; 
-                                                            break;
-                                                        case "Completed": 
-                                                            statusBadgeClass = "badge-completed"; 
-                                                            break;
-                                                        case "Cancelled": 
-                                                            statusBadgeClass = "badge-cancelled"; 
-                                                            break;
-                                                        default:
-                                                            statusBadgeClass = "badge-secondary";
-                                                            break;
+                                                        case "Pending": statusBadgeClass = "badge-pending"; break;
+                                                        case "Confirmed": statusBadgeClass = "badge-confirmed"; break;
+                                                        case "Completed": statusBadgeClass = "badge-completed"; break;
+                                                        case "Cancelled": statusBadgeClass = "badge-cancelled"; break;
+                                                        default: statusBadgeClass = "badge-secondary"; break;
                                                     }
                                             %>
                                                 <tr>
@@ -245,7 +247,6 @@
                                                         <span class="badge bg-light text-dark"><%= app.getAppointmentType() %></span>
                                                     </td>
                                                     <td>
-                                                        <%-- 'status' can no longer be null here, so we print it directly --%>
                                                         <span class="badge <%= statusBadgeClass %>">
                                                             <%= status %>
                                                         </span>
@@ -270,8 +271,6 @@
                                             <%
                                                 } // End of for loop
                                             %>
-                                            <%-- ▲▲▲ END OF THE CORRECTED CODE BLOCK ▲▲▲ --%>
-
                                         </tbody>
                                     </table>
                                 </div>
@@ -280,9 +279,65 @@
                             %>
                         </div>
                     </div>
+                    
+                    
+                    <!-- --- NEW: Patient Feedback List --- -->
+                    <div class="card card-modern recent-appointments-section mt-4">
+                        <div class="card-header-modern">
+                            <i class="fas fa-comments"></i>
+                            <span>Recent Patient Feedback</span>
+                        </div>
+                        <div class="card-body p-4" style="max-height: 400px; overflow-y: auto;">
+                            <% if (reviewList.isEmpty()) { %>
+                                <div class="text-center py-3">
+                                    <i class="fas fa-comment-slash fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No Feedback Yet</h5>
+                                    <p class="text-muted mb-0">You have not received any patient feedback.</p>
+                                </div>
+                            <% } else { 
+                                for (DoctorReview review : reviewList) {
+                                    Patient reviewPatient = patientDao.getPatientById(review.getPatientId());
+                                    String patientName = (reviewPatient != null) ? reviewPatient.getFullName() : "A Patient";
+                            %>
+                                <div class="d-flex mb-3">
+                                    <div class="flex-shrink-0 me-3">
+                                        <span class="badge bg-primary fs-5 p-2" style="width: 55px;">
+                                            <%= review.getRating() %> <i class="fas fa-star"></i>
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <p class="mb-1">"<%= (review.getComment() != null && !review.getComment().isEmpty()) ? review.getComment() : "<i>No comment left.</i>" %>"</p>
+                                        <small class="text-muted">
+                                            <strong><%= patientName %></strong> on <%= new java.text.SimpleDateFormat("MMM dd, yyyy").format(review.getReviewDate()) %>
+                                        </small>
+                                    </div>
+                                </div>
+                                <hr class="my-2">
+                            <% 
+                                } // end for loop
+                            } // end else 
+                            %>
+                        </div>
+                    </div>
+                    <!-- --- END NEW FEEDBACK --- -->
+                    
                 </div>
 
                 <div class="col-lg-4">
+                    
+                    <!-- --- NEW: Average Rating Card --- -->
+                    <div class="card card-modern mb-4">
+                        <div class="card-header-modern">
+                            <i class="fas fa-star"></i>
+                            <span>My Rating</span>
+                        </div>
+                        <div class="card-body text-center p-4">
+                            <div class="display-4 fw-bold text-primary"><%= formattedRating %> <i class="fas fa-star text-warning" style="font-size: 0.8em;"></i></div>
+                            <p class="text-muted mb-0">Based on <%= totalReviews %> patient reviews</p>
+                        </div>
+                    </div>
+                    <!-- --- END NEW CARD --- -->
+                    
                     <div class="card card-modern mb-4">
                         <div class="card-header-modern">
                             <i class="fas fa-bolt"></i>
@@ -411,13 +466,13 @@
                             data: [<%= stats[1] %>, <%= stats[2] %>, <%= stats[3] %>],
                             backgroundColor: [
                                 'rgba(255, 193, 7, 0.8)',
-                                'rgba(25, 135, 84, 0.8)',
-                                'rgba(13, 202, 240, 0.8)'
+                                'rgba(13, 202, 240, 0.8)', // Swapped colors to match stats cards
+                                'rgba(25, 135, 84, 0.8)'
                             ],
                             borderColor: [
                                 'rgba(255, 193, 7, 1)',
-                                'rgba(25, 135, 84, 1)',
-                                'rgba(13, 202, 240, 1)'
+                                'rgba(13, 202, 240, 1)',
+                                'rgba(25, 135, 84, 1)'
                             ],
                             borderWidth: 1
                         }]

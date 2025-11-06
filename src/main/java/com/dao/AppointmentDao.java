@@ -152,8 +152,10 @@ public class AppointmentDao {
         return success;
     }
 
+    // --- THIS METHOD IS UPDATED ---
     public boolean updateAppointment(Appointment appointment) {
         boolean success = false;
+        // Removed 'prescription=?' from the query
         String sql = "UPDATE appointments SET appointment_date=?, appointment_time=?, " +
                      "appointment_type=?, reason=?, notes=?, status=?, follow_up_required=? " +
                      "WHERE id=?";
@@ -168,7 +170,7 @@ public class AppointmentDao {
             ps.setString(5, appointment.getNotes());
             ps.setString(6, appointment.getStatus());
             ps.setBoolean(7, appointment.isFollowUpRequired());
-            ps.setInt(8, appointment.getId()); 
+            ps.setInt(8, appointment.getId()); // Index is now 8
             
             success = ps.executeUpdate() > 0;
             
@@ -223,6 +225,16 @@ public class AppointmentDao {
         }
         return success;
     }
+
+    // --- THIS METHOD IS DELETED ---
+    // We remove addPrescription because this logic is now in PrescriptionDao
+    /*
+    public boolean addPrescription(int appointmentId, String prescription) {
+        ...
+    }
+    */
+    // --- END OF DELETED METHOD ---
+
 
     public int getTotalAppointments() {
         int count = 0;
@@ -432,12 +444,14 @@ public class AppointmentDao {
     }
 
 
+    // --- THIS METHOD IS UPDATED ---
     // Get doctor appointment statistics for dashboard (This is your original method for the admin panel)
     public Map<String, Integer> getDoctorAppointmentStats() {
         Map<String, Integer> doctorStats = new LinkedHashMap<>();
         try (Connection conn = DBConnect.getConn();
              PreparedStatement ps = conn.prepareStatement(
-                 "SELECT d.full_name, d.specialization, COUNT(a.id) as appointment_count " +
+                 // --- UPDATED SQL: Added d.id ---
+                 "SELECT d.id, d.full_name, d.specialization, COUNT(a.id) as appointment_count " +
                  "FROM doctors d " +
                  "LEFT JOIN appointments a ON d.id = a.doctor_id " +
                  "GROUP BY d.id, d.full_name, d.specialization " +
@@ -446,9 +460,10 @@ public class AppointmentDao {
             
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    String doctorInfo = rs.getString("full_name") + "|" + rs.getString("specialization");
+                    // --- UPDATED STRING: Now includes the ID ---
+                    String doctorInfo = rs.getInt("d.id") + "|" + rs.getString("full_name") + "|" + rs.getString("specialization");
                     int count = rs.getInt("appointment_count");
-                    doctorStats.put(doctorInfo, count);
+                    doctorStats.put( doctorInfo, count);
                 }
             }
         } catch (Exception e) {
@@ -479,6 +494,7 @@ public class AppointmentDao {
         return available;
     }
     
+    // --- THIS METHOD IS UPDATED ---
     // Helper method to map ResultSet to Appointment object
     private void mapAppointmentFromResultSet(Appointment appointment, ResultSet rs) throws SQLException {
         appointment.setId(rs.getInt("id"));
@@ -493,8 +509,12 @@ public class AppointmentDao {
         appointment.setFollowUpRequired(rs.getBoolean("follow_up_required"));
         appointment.setCreatedAt(rs.getTimestamp("created_at"));
         
+        // --- THIS LINE IS DELETED ---
+        // appointment.setPrescription(rs.getString("prescription"));
+        // --- END OF DELETED LINE ---
+        
         // These columns come from the JOINs
-        if (rs.getMetaData().getColumnCount() > 12) {
+        if (rs.getMetaData().getColumnCount() > 13) { // Updated count since prescription is removed
             appointment.setPatientName(rs.getString("patient_name"));
             appointment.setDoctorName(rs.getString("doctor_name"));
             appointment.setDoctorSpecialization(rs.getString("doctor_specialization"));

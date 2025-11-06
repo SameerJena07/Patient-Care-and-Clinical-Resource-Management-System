@@ -72,7 +72,8 @@ public class DoctorAuthServlet extends HttpServlet {
             if (success) {
                 // Set a message for the user after successful registration
                 request.getSession().setAttribute("successMsg", "Registration successful. Your account is pending admin approval to Login");
-                response.sendRedirect("login.jsp");
+                // --- FIXED: Made redirect absolute ---
+                response.sendRedirect(request.getContextPath() + "/doctor/login.jsp");
             } else {
                 request.setAttribute("errorMsg", "Registration failed. Please try again.");
                 request.getRequestDispatcher("register.jsp").forward(request, response);
@@ -125,12 +126,14 @@ public class DoctorAuthServlet extends HttpServlet {
                         response.addCookie(passwordCookie);
                     }
 
-                    response.sendRedirect("dashboard.jsp");
+                    // --- FIXED: Made redirect absolute ---
+                    response.sendRedirect(request.getContextPath() + "/doctor/dashboard.jsp");
                     
                 } else {
                     // 2. Failure: Doctor is registered but NOT approved.
                     session.setAttribute("errorMsg", "Login Denied! Your account is pending administrator approval.");
-                    response.sendRedirect("login.jsp");
+                    // --- FIXED: Made redirect absolute ---
+                    response.sendRedirect(request.getContextPath() + "/doctor/login.jsp");
                 }
                 // ▲▲▲ END OF APPROVAL CHECK ▲▲▲
                 

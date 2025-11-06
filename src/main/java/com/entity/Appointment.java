@@ -20,6 +20,9 @@ public class Appointment {
     private String doctorName;
     private String doctorSpecialization;
     
+    // --- NEW FIELD ---
+    private String prescription;
+    
     public Appointment() {}
     
     public Appointment(int patientId, int doctorId, Date appointmentDate, Time appointmentTime,
@@ -146,5 +149,15 @@ public class Appointment {
     
     public void setDoctorSpecialization(String doctorSpecialization) {
         this.doctorSpecialization = doctorSpecialization;
+    }
+
+    // --- NEW GETTER AND SETTER ---
+    
+    public String getPrescription() {
+        return prescription;
+    }
+
+    public void setPrescription(String prescription) {
+        this.prescription = prescription;
     }
 }

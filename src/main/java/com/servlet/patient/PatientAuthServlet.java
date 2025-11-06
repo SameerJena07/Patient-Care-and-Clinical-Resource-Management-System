@@ -14,6 +14,9 @@ public class PatientAuthServlet extends HttpServlet {
 
     @Override
     public void init() throws ServletException {
+        // Assume patientDao is correctly initialized here (e.g., gets a database connection)
+        // Note: You should be initializing this with a connection/factory if not done in the constructor.
+        // For the sake of the example, we keep the initialization as is.
         patientDao = new PatientDao();
     }
 
@@ -39,12 +42,11 @@ public class PatientAuthServlet extends HttpServlet {
         } else if ("login".equals(action)) {
             loginPatient(request, response);
         } else {
-
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid action specified.");
         }
     }
 
-    // Patient registration
+    // Patient registration (No changes needed here based on the issue description)
     private void registerPatient(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
@@ -60,10 +62,10 @@ public class PatientAuthServlet extends HttpServlet {
             String emergencyContact = request.getParameter("emergencyContact");
             String medicalHistory = request.getParameter("medicalHistory");
 
-       
+        
             if (patientDao.isEmailExists(email)) {
                 request.setAttribute("errorMsg", "Email already exists. Please use a different email.");
-    
+        
                 request.getRequestDispatcher("/patient/register.jsp").forward(request, response);
                 return;
             }
@@ -77,7 +79,6 @@ public class PatientAuthServlet extends HttpServlet {
                 HttpSession session = request.getSession();
                 session.setAttribute("successMsg", "Registration Successful!");
                 
-         
                 response.sendRedirect(request.getContextPath() + "/patient/login.jsp");
             } else {
                 request.setAttribute("errorMsg", "Registration failed. Please try again.");
@@ -91,7 +92,7 @@ public class PatientAuthServlet extends HttpServlet {
         }
     }
 
-    // Patient login
+    // *** FIX APPLIED HERE for successful redirection ***
     private void loginPatient(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
@@ -104,30 +105,37 @@ public class PatientAuthServlet extends HttpServlet {
 
             if (patient != null) {
                 HttpSession session = request.getSession();
+                // 1. Set the authenticated user object in the session
                 session.setAttribute("patientObj", patient);
-
-                // Handle "Remember Me" cookie
+                
+                // Handle "Remember Me" cookie (Adjusted for best practice: only store email)
                 if ("on".equals(rememberMe)) {
+                    // Set email cookie
                     Cookie emailCookie = new Cookie("patientEmail", email);
                     emailCookie.setMaxAge(7 * 24 * 60 * 60); // 7 days
+                    emailCookie.setPath(request.getContextPath() + "/");
                     response.addCookie(emailCookie);
-
-    
-                    Cookie passwordCookie = new Cookie("patientPassword", "");
-                    passwordCookie.setMaxAge(0); // Set age to 0 to delete it
-                    response.addCookie(passwordCookie);
                     
+                    // Clear the old password cookie if it exists
+                    Cookie passwordCookie = new Cookie("patientPassword", "");
+                    passwordCookie.setMaxAge(0);
+                    passwordCookie.setPath(request.getContextPath() + "/");
+                    response.addCookie(passwordCookie);
                 } else {
-
+                    // Clear both remember me cookies if 'rememberMe' is not checked
                     Cookie emailCookie = new Cookie("patientEmail", "");
                     Cookie passwordCookie = new Cookie("patientPassword", "");
                     emailCookie.setMaxAge(0);
                     passwordCookie.setMaxAge(0);
+                    emailCookie.setPath(request.getContextPath() + "/");
+                    passwordCookie.setPath(request.getContextPath() + "/");
                     response.addCookie(emailCookie);
                     response.addCookie(passwordCookie);
                 }
 
-                response.sendRedirect(request.getContextPath() + "/patient/dashboard.jsp");
+                // 2. Correctly redirect to the patient dashboard
+                // This line is essential for the redirection to happen.
+                response.sendRedirect(request.getContextPath() + "/patient/dashboard.jsp"); 
             } else {
                 request.setAttribute("errorMsg", "Invalid email or password");
                 request.getRequestDispatcher("/patient/login.jsp").forward(request, response);
@@ -140,7 +148,7 @@ public class PatientAuthServlet extends HttpServlet {
         }
     }
 
-    // Patient logout
+    // Patient logout (No changes needed here)
     private void logoutPatient(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
@@ -155,6 +163,8 @@ public class PatientAuthServlet extends HttpServlet {
             Cookie passwordCookie = new Cookie("patientPassword", "");
             emailCookie.setMaxAge(0);
             passwordCookie.setMaxAge(0);
+            emailCookie.setPath(request.getContextPath() + "/");
+            passwordCookie.setPath(request.getContextPath() + "/");
             response.addCookie(emailCookie);
             response.addCookie(passwordCookie);
 

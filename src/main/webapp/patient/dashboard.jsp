@@ -62,7 +62,19 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     
-</head>
+    <style>
+        /* This is the fix for your status badges (Completed, Pending, etc.) */
+        .badge {
+            width: auto !important; /* Forces the badge to fit its content */
+            white-space: nowrap;   /* Prevents text from wrapping */
+        }
+    
+        /* This is the fix for the "Patient" badge in your sidebar */
+        .user-info .badge {
+            width: auto !important; /* Forces the badge to fit its content */
+        }
+    </style>
+    </head>
 <body>
     <button class="mobile-menu-toggle" id="mobileMenuToggle">
         <i class="fas fa-bars"></i>

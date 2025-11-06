@@ -200,7 +200,8 @@
                                         <label for="visitingCharge" class="form-label">Consultation Fee</label>
                                         <div class="input-group">
                                             <span class="input-group-text">
-                                                <i class="fas fa-dollar-sign text-primary"></i>
+                                            <i class="fa fa-inr text-primary"></i>
+                                           
                                             </span>
                                             <input type="number" class="form-control" id="visitingCharge" name="visitingCharge" required 
                                                    min="0" step="0.01" placeholder="Consultation fee amount">

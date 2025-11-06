@@ -2,6 +2,7 @@
 <%@ page import="com.dao.AppointmentDao" %>
 <%@ page import="com.dao.DoctorDao" %>
 <%@ page import="com.dao.PatientDao" %>
+<%@ page import="com.dao.ReviewDao" %> <%-- --- NEW IMPORT --- --%>
 <%@ page import="java.util.List" %>
 <%@ page import="com.entity.Doctor" %>
 <%@ page import="com.entity.Patient" %>
@@ -20,6 +21,7 @@
     AppointmentDao appointmentDao = new AppointmentDao();
     DoctorDao doctorDao = new DoctorDao();
     PatientDao patientDao = new PatientDao();
+    ReviewDao reviewDao = new ReviewDao(); // --- NEW DAO INSTANCE ---
 
     // Get real data from database
     int[] appointmentStats = appointmentDao.getAppointmentStats();
@@ -30,6 +32,8 @@
     Map<String, Integer> weeklyAppointments = appointmentDao.getWeeklyAppointmentCounts();
     List<Appointment> recentAppointments = appointmentDao.getRecentAppointments(10);
     List<Appointment> todayAppointments = appointmentDao.getTodaysAppointments();
+    
+    // This map now contains (DoctorID|Name|Specialization, ApptCount)
     Map<String, Integer> doctorAppointmentStats = appointmentDao.getDoctorAppointmentStats();
 
     String currentUserRole = "admin";
@@ -53,6 +57,9 @@
         <i class="fas fa-bars"></i>
     </button>
     
+    <!-- --- FIXED: Added Sidebar Overlay --- -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
     <div class="sidebar" id="sidebar">
         <div class="sidebar-sticky">
             <div class="user-section">
@@ -224,6 +231,7 @@
                                 </div>
                             </div>
                             
+                            <!-- --- UPDATED: Top Performing Doctors Table --- -->
                             <div class="mt-4">
                                 <h6 class="mb-3">Top Performing Doctors</h6>
                                 <div class="table-responsive">
@@ -243,27 +251,29 @@
                                                 if (doctorAppointmentStats != null && !doctorAppointmentStats.isEmpty()) {
                                                     for (Map.Entry<String, Integer> entry : doctorAppointmentStats.entrySet()) {
                                                         if (rank > 5) break;
+                                                        
+                                                        // --- NEW: Split the key to get the ID ---
                                                         String[] doctorInfo = entry.getKey().split("\\|");
-                                                        if (doctorInfo.length >= 2) {
+                                                        int doctorId = Integer.parseInt(doctorInfo[0]);
+                                                        String doctorName = doctorInfo[1];
+                                                        String specialization = doctorInfo[2];
                                             %>
                                             <tr>
                                                 <td><div class="doctor-rank"><%= rank++ %></div></td>
-                                                <td><strong><%= doctorInfo[0] %></strong></td>
-                                                <td><%= doctorInfo[1] %></td>
+                                                <td><strong><%= doctorName %></strong></td>
+                                                <td><%= specialization %></td>
                                                 <td><span class="badge bg-primary"><%= entry.getValue() %></span></td>
                                                 <td>
                                                     <%
-                                                        // Calculate rating based on appointment count (4.0 to 5.0 scale)
-                                                        double rating = 4.0 + (entry.getValue() / 100.0);
-                                                        if (rating > 5.0) rating = 5.0;
+                                                        // --- NEW: Get REAL rating from ReviewDao ---
+                                                        double realRating = reviewDao.getAverageRatingByDoctorId(doctorId);
                                                     %>
                                                     <span class="text-warning">
-                                                        <i class="fas fa-star"></i> <%= String.format("%.1f", rating) %>
+                                                        <i class="fas fa-star"></i> <%= String.format("%.1f", realRating) %>
                                                     </span>
                                                 </td>
                                             </tr>
                                             <%
-                                                        }
                                                     }
                                                 } else {
                                             %>
@@ -282,6 +292,8 @@
                                     </table>
                                 </div>
                             </div>
+                            <!-- --- END OF UPDATE --- -->
+                            
                         </div>
                     </div>
                 </div>
@@ -486,15 +498,41 @@
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
+    <!-- --- FIXED: Replaced entire script block --- -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Mobile menu toggle
             const mobileMenuToggle = document.getElementById('mobileMenuToggle');
             const sidebar = document.getElementById('sidebar');
-            
-            if (mobileMenuToggle && sidebar) {
+            const sidebarOverlay = document.getElementById('sidebarOverlay'); // --- ADDED ---
+
+            function checkScreenSize() {
+                if (window.innerWidth <= 768) {
+                    if (mobileMenuToggle) mobileMenuToggle.style.display = 'flex';
+                    if (sidebar) sidebar.classList.remove('mobile-open');
+                    if (sidebarOverlay) sidebarOverlay.classList.remove('active'); // --- ADDED ---
+                } else {
+                    if (mobileMenuToggle) mobileMenuToggle.style.display = 'none';
+                    if (sidebar) sidebar.classList.remove('mobile-open');
+                    if (sidebarOverlay) sidebarOverlay.classList.remove('active'); // --- ADDED ---
+                }
+            }
+
+            checkScreenSize();
+            window.addEventListener('resize', checkScreenSize);
+
+            if (mobileMenuToggle) {
                 mobileMenuToggle.addEventListener('click', function() {
-                    sidebar.classList.toggle('mobile-open');
+                    if (sidebar) sidebar.classList.toggle('mobile-open');
+                    if (sidebarOverlay) sidebarOverlay.classList.toggle('active'); // --- ADDED ---
+                });
+            }
+
+            // --- NEW: Add overlay click listener ---
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', function() {
+                    if (sidebar) sidebar.classList.remove('mobile-open');
+                    if (sidebarOverlay) sidebarOverlay.classList.remove('active');
                 });
             }
 
@@ -510,81 +548,85 @@
             });
 
             // Weekly Appointments Chart - USING REAL DATA
-            const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
-            new Chart(weeklyCtx, {
-                type: 'line',
-                data: {
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                    datasets: [{
-                        label: 'Appointments',
-                        data: [
-                            <%= weeklyAppointments.getOrDefault("Monday", 0) %>,
-                            <%= weeklyAppointments.getOrDefault("Tuesday", 0) %>,
-                            <%= weeklyAppointments.getOrDefault("Wednesday", 0) %>,
-                            <%= weeklyAppointments.getOrDefault("Thursday", 0) %>,
-                            <%= weeklyAppointments.getOrDefault("Friday", 0) %>,
-                            <%= weeklyAppointments.getOrDefault("Saturday", 0) %>,
-                            <%= weeklyAppointments.getOrDefault("Sunday", 0) %>
-                        ],
-                        backgroundColor: 'rgba(67, 97, 238, 0.1)',
-                        borderColor: 'rgba(67, 97, 238, 1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
+            const weeklyCtx = document.getElementById('weeklyChart');
+            if(weeklyCtx) {
+                new Chart(weeklyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                        datasets: [{
+                            label: 'Appointments',
+                            data: [
+                                <%= weeklyAppointments.getOrDefault("Monday", 0) %>,
+                                <%= weeklyAppointments.getOrDefault("Tuesday", 0) %>,
+                                <%= weeklyAppointments.getOrDefault("Wednesday", 0) %>,
+                                <%= weeklyAppointments.getOrDefault("Thursday", 0) %>,
+                                <%= weeklyAppointments.getOrDefault("Friday", 0) %>,
+                                <%= weeklyAppointments.getOrDefault("Saturday", 0) %>,
+                                <%= weeklyAppointments.getOrDefault("Sunday", 0) %>
+                            ],
+                            backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                            borderColor: 'rgba(67, 97, 238, 1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        }]
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(0,0,0,0.1)' }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
                         },
-                        x: {
-                            grid: { display: false }
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(0,0,0,0.1)' }
+                            },
+                            x: {
+                                grid: { display: false }
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
 
             // Status Distribution Chart - USING REAL DATA
-            const statusCtx = document.getElementById('statusChart').getContext('2d');
-            new Chart(statusCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Pending', 'Confirmed', 'Completed', 'Cancelled'],
-                    datasets: [{
-                        data: [
-                            <%= appointmentStats[1] %>,
-                            <%= appointmentStats[2] %>,
-                            <%= appointmentStats[3] %>,
-                            <%= appointmentStats[4] %>
-                        ],
-                        backgroundColor: [
-                            'rgba(255, 193, 7, 0.8)',
-                            'rgba(25, 135, 84, 0.8)',
-                            'rgba(13, 202, 240, 0.8)',
-                            'rgba(108, 117, 125, 0.8)'
-                        ],
-                        borderColor: '#fff',
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
-                        }
+            const statusCtx = document.getElementById('statusChart');
+            if (statusCtx) {
+                new Chart(statusCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Pending', 'Confirmed', 'Completed', 'Cancelled'],
+                        datasets: [{
+                            data: [
+                                <%= appointmentStats[1] %>,
+                                <%= appointmentStats[2] %>,
+                                <%= appointmentStats[3] %>,
+                                <%= appointmentStats[4] %>
+                            ],
+                            backgroundColor: [
+                                'rgba(255, 193, 7, 0.8)',
+                                'rgba(25, 135, 84, 0.8)',
+                                'rgba(13, 202, 240, 0.8)',
+                                'rgba(108, 117, 125, 0.8)'
+                            ],
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        }]
                     },
-                    cutout: '60%'
-                }
-            });
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        },
+                        cutout: '60%'
+                    }
+                });
+            }
         });
     </script>
 </body>
